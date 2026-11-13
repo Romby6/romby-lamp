@@ -369,7 +369,7 @@ input[type=file]::file-selector-button { background: none; border: 1px solid var
           <input type="range" class="ktrack" id="mk" min="1800" max="7500" step="50" value="4000" aria-label="Fixed colour temperature">
         </div>
         <div class="card-footer">
-          <span class="hint">Knob: turn = brightness · press = on/off · double-press = busy · hold = switch mode</span>
+          <span class="hint">Knob: turn = brightness · press = on/off · double-press = busy · hold 3 s = switch mode</span>
         </div>
       </div>
     </section>
@@ -561,6 +561,11 @@ input[type=file]::file-selector-button { background: none; border: 1px solid var
         <div class="field"><label for="encSteps">Pulses per click</label>
           <select id="encSteps" data-set="encSteps" data-kind="int"><option value="4">4 (most EC11s)</option><option value="2">2 (if each click jumps twice)</option></select></div>
         <label class="check"><input type="checkbox" id="encReverse" data-set="encReverse" data-kind="bool"> Reverse direction (clockwise dims)</label>
+        <div class="field"><label for="holdTenths">Hold the knob to switch Circadian ↔ Progress bar</label>
+          <select id="holdTenths" data-set="holdTenths" data-kind="int">
+            <option value="10">1 second</option><option value="20">2 seconds</option><option value="30">3 seconds</option><option value="50">5 seconds</option>
+          </select>
+          <span class="hint">The strip dips twice when the hold registers.</span></div>
         <label class="check"><input type="checkbox" id="encPower" data-set="encPower" data-kind="bool"> Power a KY-040 module from Q2 (only for the knob-on-a-board kind with a "+" pin)</label>
         <span class="hint">Wiring: A → Q3, B → Q4, middle pin → GND, push switch → Button and GND.</span>
         <div class="sub-head">Knob test</div>
@@ -714,7 +719,7 @@ const defaults = () => ({
   net: { sta: false, ssid: '', ip: '0.0.0.0', rssi: 0, ap: true, apSsid: 'RombyLamp-4F2A', apIp: '192.168.4.1' },
   cfg: { stripType: 1, pixels: 60, order: 0, rgbOrder: 0, cctOrder: 0, cctFirst: false, warmK: 3000, coolK: 6500, reverse: false, whiteK: 4000, maxBri: 80, progStart: 480, progEnd: 1050,
     weekdaysOnly: true, autoSchedule: true, afterHoursMin: 120, earlyHrs: 3, fadeMin: 1, glow: 10, curveMin: [360, 480, 720, 1020, 1260], curveK: [2700, 6000, 5000, 3500, 2400],
-    redTrigger: 2, redBri: 60, redStyle: 0, redEndPct: 10, redPulse: true, redPulseMin: 10, redPulseSec: 4, redWhenOff: true, autoClearHrs: 4, encSteps: 4, encReverse: false, lowTx: true, keepAP: false, encPower: false }
+    redTrigger: 2, redBri: 60, redStyle: 0, redEndPct: 10, redPulse: true, redPulseMin: 10, redPulseSec: 4, redWhenOff: true, autoClearHrs: 4, encSteps: 4, encReverse: false, lowTx: true, keepAP: false, encPower: false, holdTenths: 30 }
 });
 let st = defaults();
 let live = false, gotAt = performance.now();

@@ -50,7 +50,7 @@
 #include <sys/time.h>
 #include "dashboard.h"
 
-#define FW_VERSION   "1.3.8"
+#define FW_VERSION   "1.3.9"
 #define PIN_LED      2     // Dig-Uno v4 LED1
 #define PIN_ENC_A    13    // Dig-Uno v4 Q3 (Q1/GPIO32 reads stuck low on the v4 board)
 #define PIN_ENC_B    15    // Dig-Uno v4 Q4
@@ -106,6 +106,7 @@ struct Settings {
   uint8_t  redPulseMin  = 10;     // busy-light pulse: lowest point, % of red brightness
   uint8_t  redPulseSec  = 4;      // busy-light pulse: seconds per breath
   bool     encPower     = false;  // added in 1.3.8: drive Q2 to 3.3 V for a KY-040 module's "+" pin
+  uint8_t  holdTenths   = 30;     // added in 1.3.9: hold the knob this long (tenths of a second) to switch mode
 };
 
 const neoPixelType ORDERS[] = {NEO_GRBW, NEO_RGBW, NEO_RBGW, NEO_GBRW, NEO_BRGW, NEO_BGRW};
@@ -151,7 +152,8 @@ bool     scheduleBooted = false;
 
 int      previewMin   = -1;  // dashboard time scrubber mirrored onto the lamp
 uint32_t previewUntil = 0;
-uint32_t identifyAt   = 0;   // colour-order test sequence start (0 = off)
+uint32_t identifyAt   = 0;
+uint32_t blinkAt      = 0;   // quick dip of the strip to confirm a knob hold (0 = none)   // colour-order test sequence start (0 = off)
 
 String   wifiSsid, wifiPass;
 bool     apOn = false;
@@ -201,6 +203,7 @@ void loadAll() {
   if (cfg.order >= ORDER_COUNT) cfg.order = 0;
   if (cfg.redPulseMin > 90) cfg.redPulseMin = 10;
   if (cfg.redPulseSec < 1 || cfg.redPulseSec > 20) cfg.redPulseSec = 4;
+  if (cfg.holdTenths < 5 || cfg.holdTenths > 100) cfg.holdTenths = 30;
   if (cfg.stripType > 1) cfg.stripType = 1;
   if (cfg.rgbOrder >= RGB_ORDER_COUNT) cfg.rgbOrder = 0;
   if (cfg.cctOrder >= CCT_ORDER_COUNT) cfg.cctOrder = 0;
@@ -515,6 +518,13 @@ void computeTarget(float target[][CH]) {
       if (i < e || i >= n - e) { target[i][0] = lv; target[i][1] = 0; target[i][2] = 0; target[i][3] = 0; target[i][4] = 0; }
     }
   }
+
+  // 4) knob-hold confirmation: two quick dips
+  if (blinkAt) {
+    uint32_t e = now - blinkAt;
+    if (e > 600) blinkAt = 0;
+    else if ((e / 150) % 2 == 0) for (int i = 0; i < n; i++) for (int c = 0; c < CH; c++) target[i][c] *= 0.15f;
+  }
 }
 
 void renderFrame() {
@@ -602,6 +612,7 @@ void doublePress() {
 }
 
 void longPress() {
+  blinkAt = millis() | 1;                // let the user see the hold registered
   mode = (mode == 1) ? 0 : 1;
   if (!powerOn) setPower(true);
   markDirty();
@@ -643,6 +654,9 @@ void handleInputs() {
   if (millis() - changeMs > 30 && r != stable) {
     stable = r;
     if (stable == LOW) { downMs = millis(); longFired = false; }
+    else if (!longFired && millis() - downMs > 600) {
+      presses = 0; waitingSecond = false;     // a hold that was let go early: do nothing
+    }
     else if (!longFired) {
       presses++;
       upMs = millis();
@@ -650,7 +664,7 @@ void handleInputs() {
       if (presses >= 2) { presses = 0; waitingSecond = false; doublePress(); }
     }
   }
-  if (stable == LOW && !longFired && millis() - downMs > 700) { longFired = true; presses = 0; waitingSecond = false; longPress(); }
+  if (stable == LOW && !longFired && millis() - downMs > cfg.holdTenths * 100UL) { longFired = true; presses = 0; waitingSecond = false; longPress(); }
   if (waitingSecond && stable == HIGH && millis() - upMs > 350) { waitingSecond = false; presses = 0; shortPress(); }
 }
 
@@ -801,6 +815,7 @@ String stateJson() {
   j += ",\"encSteps\":" + String(cfg.encSteps);
   j += ",\"encReverse\":" + String(cfg.encReverse ? "true" : "false");
   j += ",\"encPower\":" + String(cfg.encPower ? "true" : "false");
+  j += ",\"holdTenths\":" + String(cfg.holdTenths);
   j += ",\"lowTx\":" + String(cfg.lowTx ? "true" : "false");
   j += ",\"keepAP\":" + String(cfg.keepAP ? "true" : "false");
   j += ",\"wifiOff\":" + String(cfg.wifiOff ? "true" : "false");
@@ -882,6 +897,7 @@ void handleSettings() {
   u8("autoClearHrs", cfg.autoClearHrs, 0, 24);
   if (hasA("encSteps")) cfg.encSteps = argA("encSteps").toInt() == 2 ? 2 : 4;
   bl("encReverse", cfg.encReverse);
+  u8("holdTenths", cfg.holdTenths, 5, 100);
   {
     bool oldPow = cfg.encPower;
     bl("encPower", cfg.encPower);
