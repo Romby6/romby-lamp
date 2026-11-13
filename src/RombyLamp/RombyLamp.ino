@@ -6,10 +6,10 @@
   ---------------------------------------------------------------------------
   Wiring for the QuinLED Dig-Uno v4 with the QuinLED-ESP32 (ESP32-PICO-MINI-02) module (see README):
     Strip data  -> LED1 (GPIO2)
-    Encoder A   -> Q1  (GPIO32)
+    Encoder A   -> Q3  (GPIO13)   (not Q1: on the Dig-Uno v4, Q1 doubles as a relay output and is held low)
     Encoder B   -> Q4  (GPIO15)
     Encoder SW  -> Button (GPIO37, input only, pulled high on the board)
-    KY-040 "+"  -> Q2  (GPIO33: the firmware drives it to 3.3 V to power the module's pull-up resistors)
+    KY-040 "+"  -> Q2  (GPIO33: only if "Power a KY-040 from Q2" is ticked in Settings -> Knob)
   Never use GPIO16/17 on this module: they belong to its internal PSRAM.
   (Dig-Uno v3 used LED1 = GPIO16 and Button = GPIO0. Change the four PIN_ lines to build for v3.)
     Encoder C + other SW leg -> GND
@@ -50,9 +50,9 @@
 #include <sys/time.h>
 #include "dashboard.h"
 
-#define FW_VERSION   "1.3.7"
+#define FW_VERSION   "1.3.8"
 #define PIN_LED      2     // Dig-Uno v4 LED1
-#define PIN_ENC_A    32    // Dig-Uno v4 Q1
+#define PIN_ENC_A    13    // Dig-Uno v4 Q3 (Q1/GPIO32 reads stuck low on the v4 board)
 #define PIN_ENC_B    15    // Dig-Uno v4 Q4
 #define PIN_BTN      37    // Dig-Uno v4 Button (input only; the board pulls it high)
 #define PIN_ENC_PWR  33    // Dig-Uno v4 Q2: 3.3 V supply for a KY-040 module's "+" pin (about 0.7 mA)
@@ -105,6 +105,7 @@ struct Settings {
   // added in 1.3.5 (new fields go at the end so saved settings carry over)
   uint8_t  redPulseMin  = 10;     // busy-light pulse: lowest point, % of red brightness
   uint8_t  redPulseSec  = 4;      // busy-light pulse: seconds per breath
+  bool     encPower     = false;  // added in 1.3.8: drive Q2 to 3.3 V for a KY-040 module's "+" pin
 };
 
 const neoPixelType ORDERS[] = {NEO_GRBW, NEO_RGBW, NEO_RBGW, NEO_GBRW, NEO_BRGW, NEO_BGRW};
@@ -799,6 +800,7 @@ String stateJson() {
   j += ",\"autoClearHrs\":" + String(cfg.autoClearHrs);
   j += ",\"encSteps\":" + String(cfg.encSteps);
   j += ",\"encReverse\":" + String(cfg.encReverse ? "true" : "false");
+  j += ",\"encPower\":" + String(cfg.encPower ? "true" : "false");
   j += ",\"lowTx\":" + String(cfg.lowTx ? "true" : "false");
   j += ",\"keepAP\":" + String(cfg.keepAP ? "true" : "false");
   j += ",\"wifiOff\":" + String(cfg.wifiOff ? "true" : "false");
@@ -880,6 +882,14 @@ void handleSettings() {
   u8("autoClearHrs", cfg.autoClearHrs, 0, 24);
   if (hasA("encSteps")) cfg.encSteps = argA("encSteps").toInt() == 2 ? 2 : 4;
   bl("encReverse", cfg.encReverse);
+  {
+    bool oldPow = cfg.encPower;
+    bl("encPower", cfg.encPower);
+    if (cfg.encPower != oldPow) {
+      if (cfg.encPower) { pinMode(PIN_ENC_PWR, OUTPUT); digitalWrite(PIN_ENC_PWR, HIGH); }
+      else pinMode(PIN_ENC_PWR, INPUT);
+    }
+  }
   bool oldTx = cfg.lowTx;
   bl("lowTx", cfg.lowTx);
   bl("keepAP", cfg.keepAP);
@@ -1114,9 +1124,13 @@ void setup() {
   strip.clear();
   stripShow();
 
-  pinMode(PIN_ENC_PWR, OUTPUT);          // power the knob module's pull-ups before reading it
-  digitalWrite(PIN_ENC_PWR, HIGH);
-  delay(5);
+  if (cfg.encPower) {                    // power a KY-040 module's pull-ups before reading it
+    pinMode(PIN_ENC_PWR, OUTPUT);
+    digitalWrite(PIN_ENC_PWR, HIGH);
+    delay(5);
+  } else {
+    pinMode(PIN_ENC_PWR, INPUT);         // Q2 left alone (safe if anything is wired to it)
+  }
   pinMode(PIN_ENC_A, INPUT_PULLUP);
   pinMode(PIN_ENC_B, INPUT_PULLUP);
   pinMode(PIN_BTN, INPUT);

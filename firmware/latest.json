@@ -1,7 +1,7 @@
 {
-  "version": "1.3.7",
-  "update": "RombyLamp-1.3.7-update.bin",
-  "full": "RombyLamp-1.3.7-full.bin",
-  "md5": "73817bdbbc00952a9fa3d60ff082b567",
-  "notes": "Knob test readout in Settings \u2192 Knob"
+  "version": "1.3.8",
+  "update": "RombyLamp-1.3.8-update.bin",
+  "full": "RombyLamp-1.3.8-full.bin",
+  "md5": "a16151d014fcc48dc5d5a5f948a1b4a0",
+  "notes": "Knob wire A moves to Q3 (Q1 is held low on the Dig-Uno v4)"
 }

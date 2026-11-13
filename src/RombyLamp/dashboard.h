@@ -561,9 +561,11 @@ input[type=file]::file-selector-button { background: none; border: 1px solid var
         <div class="field"><label for="encSteps">Pulses per click</label>
           <select id="encSteps" data-set="encSteps" data-kind="int"><option value="4">4 (most EC11s)</option><option value="2">2 (if each click jumps twice)</option></select></div>
         <label class="check"><input type="checkbox" id="encReverse" data-set="encReverse" data-kind="bool"> Reverse direction (clockwise dims)</label>
+        <label class="check"><input type="checkbox" id="encPower" data-set="encPower" data-kind="bool"> Power a KY-040 module from Q2 (only for the knob-on-a-board kind with a "+" pin)</label>
+        <span class="hint">Wiring: A → Q3, B → Q4, middle pin → GND, push switch → Button and GND.</span>
         <div class="sub-head">Knob test</div>
         <span class="hint">Turn the knob slowly while this section is open. Each wire should flip between 1 and 0, and "Changes seen" should count up.</span>
-        <div class="spec-row"><span class="spec-label">Wire A (Q1)</span><span class="spec-value mono" id="kA">—</span></div>
+        <div class="spec-row"><span class="spec-label">Wire A (Q3)</span><span class="spec-value mono" id="kA">—</span></div>
         <div class="spec-row"><span class="spec-label">Wire B (Q4)</span><span class="spec-value mono" id="kB">—</span></div>
         <div class="spec-row"><span class="spec-label">Button</span><span class="spec-value mono" id="kBtn">—</span></div>
         <div class="spec-row"><span class="spec-label">Changes seen</span><span class="spec-value mono" id="kEdges">—</span></div>
@@ -712,7 +714,7 @@ const defaults = () => ({
   net: { sta: false, ssid: '', ip: '0.0.0.0', rssi: 0, ap: true, apSsid: 'RombyLamp-4F2A', apIp: '192.168.4.1' },
   cfg: { stripType: 1, pixels: 60, order: 0, rgbOrder: 0, cctOrder: 0, cctFirst: false, warmK: 3000, coolK: 6500, reverse: false, whiteK: 4000, maxBri: 80, progStart: 480, progEnd: 1050,
     weekdaysOnly: true, autoSchedule: true, afterHoursMin: 120, earlyHrs: 3, fadeMin: 1, glow: 10, curveMin: [360, 480, 720, 1020, 1260], curveK: [2700, 6000, 5000, 3500, 2400],
-    redTrigger: 2, redBri: 60, redStyle: 0, redEndPct: 10, redPulse: true, redPulseMin: 10, redPulseSec: 4, redWhenOff: true, autoClearHrs: 4, encSteps: 4, encReverse: false, lowTx: true, keepAP: false }
+    redTrigger: 2, redBri: 60, redStyle: 0, redEndPct: 10, redPulse: true, redPulseMin: 10, redPulseSec: 4, redWhenOff: true, autoClearHrs: 4, encSteps: 4, encReverse: false, lowTx: true, keepAP: false, encPower: false }
 });
 let st = defaults();
 let live = false, gotAt = performance.now();
