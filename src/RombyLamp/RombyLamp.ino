@@ -50,7 +50,7 @@
 #include <sys/time.h>
 #include "dashboard.h"
 
-#define FW_VERSION   "1.3.6"
+#define FW_VERSION   "1.3.7"
 #define PIN_LED      2     // Dig-Uno v4 LED1
 #define PIN_ENC_A    32    // Dig-Uno v4 Q1
 #define PIN_ENC_B    15    // Dig-Uno v4 Q4
@@ -166,6 +166,7 @@ uint8_t  lastOut[MAX_PIXELS * CH];  // last bytes sent, to skip identical frames
 // Encoder (interrupt driven quadrature)
 // ---------------------------------------------------------------------------
 volatile int32_t encRaw  = 0;
+volatile uint32_t encEdges = 0;   // every change seen on the knob's turning wires (for the dashboard's knob test)
 volatile uint8_t encPrev = 0;
 const int8_t ENC_TABLE[16] = {0, -1, 1, 0, 1, 0, 0, -1, -1, 0, 0, 1, 0, 1, -1, 0};
 
@@ -173,6 +174,7 @@ void IRAM_ATTR encISR() {
   uint8_t s = (digitalRead(PIN_ENC_A) << 1) | digitalRead(PIN_ENC_B);
   encPrev = ((encPrev << 2) | s) & 0x0F;
   encRaw += ENC_TABLE[encPrev];
+  encEdges++;
 }
 
 // ---------------------------------------------------------------------------
@@ -991,6 +993,13 @@ void setupArduinoOTA() {
   MDNS.enableArduino(3232, true);
 }
 
+// Small live readout for the dashboard's knob test
+String knobJson() {
+  return String("{\"a\":") + digitalRead(PIN_ENC_A) + ",\"b\":" + digitalRead(PIN_ENC_B) +
+         ",\"btn\":" + digitalRead(PIN_BTN) + ",\"edges\":" + (uint32_t)encEdges +
+         ",\"count\":" + (int32_t)encRaw + ",\"bri\":" + bri + "}";
+}
+
 void handleRoot() {
   server.sendHeader("Cache-Control", "no-store");
   server.send_P(200, "text/html", DASHBOARD_HTML);
@@ -1023,6 +1032,7 @@ void setupServer() {
   server.on("/api/wifi", HTTP_POST, handleWifiSave);
   server.on("/api/scan", HTTP_GET, handleScan);
   server.on("/api/update", HTTP_POST, handleUpdateDone, handleUpdateChunk);
+  server.on("/api/knob", HTTP_GET, []() { sendJson(knobJson()); });
   server.on("/api/reboot", HTTP_POST, []() { sendJson("{\"ok\":true}"); rebootAt = millis() + 800; });
   server.onNotFound(handleNotFound);
   server.begin();
@@ -1073,6 +1083,7 @@ void handleSerialLine(String line) {
   else if (path == "/api/time")     handleTime();
   else if (path == "/api/wifi")     handleWifiSave();
   else if (path == "/api/scan")     handleScan();
+  else if (path == "/api/knob")     sendJson(knobJson());
   else if (path == "/api/reboot")   { sendJson("{\"ok\":true}"); rebootAt = millis() + 800; }
   viaSerial = false;
   Serial.print('@');

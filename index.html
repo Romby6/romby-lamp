@@ -559,6 +559,13 @@ input[type=file]::file-selector-button { background: none; border: 1px solid var
         <div class="field"><label for="encSteps">Pulses per click</label>
           <select id="encSteps" data-set="encSteps" data-kind="int"><option value="4">4 (most EC11s)</option><option value="2">2 (if each click jumps twice)</option></select></div>
         <label class="check"><input type="checkbox" id="encReverse" data-set="encReverse" data-kind="bool"> Reverse direction (clockwise dims)</label>
+        <div class="sub-head">Knob test</div>
+        <span class="hint">Turn the knob slowly while this section is open. Each wire should flip between 1 and 0, and "Changes seen" should count up.</span>
+        <div class="spec-row"><span class="spec-label">Wire A (Q1)</span><span class="spec-value mono" id="kA">—</span></div>
+        <div class="spec-row"><span class="spec-label">Wire B (Q4)</span><span class="spec-value mono" id="kB">—</span></div>
+        <div class="spec-row"><span class="spec-label">Button</span><span class="spec-value mono" id="kBtn">—</span></div>
+        <div class="spec-row"><span class="spec-label">Changes seen</span><span class="spec-value mono" id="kEdges">—</span></div>
+        <span class="hint" id="kHint"></span>
       </div>
     </details>
 
@@ -1546,6 +1553,22 @@ $('lenVal').addEventListener('change', () => {
 });
 $('lenUnit').addEventListener('change', () => { LEN.unit = $('lenUnit').value; saveLen(); showLen(); });
 $('cutMm').addEventListener('change', () => { const c = parseFloat($('cutMm').value); if (c >= 5 && c <= 500) { LEN.cut = c; saveLen(); } showLen(); });
+
+/* knob test: fast readout while the Knob section is open */
+const knobDrawer = [...document.querySelectorAll('details.drawer')].find(d => d.querySelector('#encSteps'));
+let knobBase = null;
+async function knobTick() {
+  if (!knobDrawer.open || !live || updBusy) { knobBase = null; return; }
+  try {
+    const k = await (await fetch('/api/knob', { cache: 'no-store' })).json();
+    if (knobBase == null) knobBase = k.edges;
+    $('kA').textContent = k.a ? '1 (idle)' : '0'; $('kB').textContent = k.b ? '1 (idle)' : '0';
+    $('kBtn').textContent = k.btn ? 'released' : 'PRESSED';
+    $('kEdges').textContent = k.edges - knobBase;
+    $('kHint').textContent = (k.edges - knobBase) > 0 ? 'The lamp sees the knob turning.' : '';
+  } catch (e) { $('kHint').textContent = live && st.v && verNum(st.v) < verNum('1.3.7') ? 'Update the lamp to 1.3.7 to use the knob test.' : ''; }
+}
+setInterval(knobTick, 300);
 
 /* scrubber */
 const track = $('track');
