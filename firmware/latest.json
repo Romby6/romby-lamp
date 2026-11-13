@@ -1,7 +1,7 @@
 {
-  "version": "1.3.5",
-  "update": "RombyLamp-1.3.5-update.bin",
-  "full": "RombyLamp-1.3.5-full.bin",
-  "md5": "fa727d251e411fbd14a08dfde1edc708",
-  "notes": "Adjustable busy-light pulse (10\u2013100%, slow breath); settings kept across updates"
+  "version": "1.3.6",
+  "update": "RombyLamp-1.3.6-update.bin",
+  "full": "RombyLamp-1.3.6-full.bin",
+  "md5": "f0d1f7a9ada745315677a5d5e9c7c3d3",
+  "notes": "Knob support: powers a KY-040 from Q2, clicks never drift out of step"
 }

@@ -9,6 +9,7 @@
     Encoder A   -> Q1  (GPIO32)
     Encoder B   -> Q4  (GPIO15)
     Encoder SW  -> Button (GPIO37, input only, pulled high on the board)
+    KY-040 "+"  -> Q2  (GPIO33: the firmware drives it to 3.3 V to power the module's pull-up resistors)
   Never use GPIO16/17 on this module: they belong to its internal PSRAM.
   (Dig-Uno v3 used LED1 = GPIO16 and Button = GPIO0. Change the four PIN_ lines to build for v3.)
     Encoder C + other SW leg -> GND
@@ -49,11 +50,12 @@
 #include <sys/time.h>
 #include "dashboard.h"
 
-#define FW_VERSION   "1.3.5"
+#define FW_VERSION   "1.3.6"
 #define PIN_LED      2     // Dig-Uno v4 LED1
 #define PIN_ENC_A    32    // Dig-Uno v4 Q1
 #define PIN_ENC_B    15    // Dig-Uno v4 Q4
 #define PIN_BTN      37    // Dig-Uno v4 Button (input only; the board pulls it high)
+#define PIN_ENC_PWR  33    // Dig-Uno v4 Q2: 3.3 V supply for a KY-040 module's "+" pin (about 0.7 mA)
 #define MAX_PIXELS   600          // logical pixels (a dual-IC segment counts as one)
 #define CH           5            // R, G, B, W1, W2 (RGBW uses W1; RGBCCT uses W1 = warm, W2 = cool)
 #define HOSTNAME     "rombylamp"
@@ -603,13 +605,22 @@ void longPress() {
 }
 
 void handleInputs() {
+  // Count clicks. Whenever the knob is sitting in a click (both lines high for a 4-step encoder,
+  // or both lines equal for a 2-step one), round to the nearest whole click and re-align, so a
+  // missed edge or a half-turn can never leave the count out of step.
   static int32_t used = 0;
   int32_t raw = encRaw;
-  int32_t d = (raw - used) / (int32_t)cfg.encSteps;
-  if (d != 0) {
-    used += d * cfg.encSteps;
-    handleTurn(cfg.encReverse ? -d : d);
+  int32_t steps = cfg.encSteps;
+  int32_t diff = raw - used;
+  int a = digitalRead(PIN_ENC_A), b = digitalRead(PIN_ENC_B);
+  bool atRest = (steps == 4) ? (a && b) : (a == b);
+  int32_t d = 0;
+  if (atRest) {
+    if (diff) { d = (diff + (diff > 0 ? steps / 2 : -steps / 2)) / steps; used = raw; }
+  } else if (diff >= steps * 2 || diff <= -steps * 2) {        // spinning fast past several clicks
+    d = diff / steps; used += d * steps;
   }
+  if (d != 0) handleTurn(cfg.encReverse ? -d : d);
 
   // single press waits 350 ms to see whether a second press follows
   static bool last = HIGH, stable = HIGH, longFired = false, waitingSecond = false;
@@ -1092,9 +1103,13 @@ void setup() {
   strip.clear();
   stripShow();
 
+  pinMode(PIN_ENC_PWR, OUTPUT);          // power the knob module's pull-ups before reading it
+  digitalWrite(PIN_ENC_PWR, HIGH);
+  delay(5);
   pinMode(PIN_ENC_A, INPUT_PULLUP);
   pinMode(PIN_ENC_B, INPUT_PULLUP);
-  pinMode(PIN_BTN, INPUT);              // GPIO37 has no internal pull-up; the Dig-Uno v4 provides one
+  pinMode(PIN_BTN, INPUT);
+  encPrev = (digitalRead(PIN_ENC_A) << 1) | digitalRead(PIN_ENC_B);   // start from where the knob really is              // GPIO37 has no internal pull-up; the Dig-Uno v4 provides one
   attachInterrupt(digitalPinToInterrupt(PIN_ENC_A), encISR, CHANGE);
   attachInterrupt(digitalPinToInterrupt(PIN_ENC_B), encISR, CHANGE);
 
